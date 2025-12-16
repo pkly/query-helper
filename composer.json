@@ -1,0 +1,27 @@
+{
+    "name": "pkly/query-helper",
+    "description": "Simple utility class for easier use of Doctrine ORM Queries in certain scenarios",
+    "type": "library",
+    "license": "MIT",
+    "autoload": {
+        "psr-4": {
+            "Pkly\\QueryHelper\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "pkly"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "doctrine/dbal": "^4",
+        "doctrine/orm": "^3"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3",
+        "pedrotroller/php-cs-custom-fixer": "^2",
+        "phpstan/phpstan": "^2",
+        "phpstan/phpstan-strict-rules": "^2.0"
+    }
+}
