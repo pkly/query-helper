@@ -1,0 +1,5 @@
+parameters:
+  ignoreErrors:
+    -
+      message: '#Method .+ should return Pkly\\QueryHelper\\QueryHelper<.+> but returns Pkly\\QueryHelper\\QueryHelper<.+.>\.#'
+      identifier: return.type
