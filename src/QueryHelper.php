@@ -173,7 +173,7 @@ class QueryHelper
         $selects = [];
 
         foreach ($fields as $field) {
-            $selects[] = 'entity.'.$field;
+            $selects[] = str_contains($field, '.') ? $field : 'entity.'.$field;
         }
 
         $qb->select(...$selects);
