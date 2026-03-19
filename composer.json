@@ -8,6 +8,11 @@
             "Pkly\\QueryHelper\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\Pkly\\QueryHelper\\": "tests/"
+        }
+    },
     "authors": [
         {
             "name": "pkly"
@@ -22,6 +27,10 @@
         "friendsofphp/php-cs-fixer": "^3",
         "pedrotroller/php-cs-custom-fixer": "^2",
         "phpstan/phpstan": "^2",
-        "phpstan/phpstan-strict-rules": "^2.0"
+        "phpstan/phpstan-strict-rules": "^2.0",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-doctrine": "^2.0",
+        "phpunit/phpunit": "^12.5",
+        "symfony/cache": "^6.4|^7.0"
     }
 }

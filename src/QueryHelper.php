@@ -111,7 +111,7 @@ class QueryHelper
         $qb = (clone $this->queryBuilder);
 
         if ($this->distinct) {
-            $qb->select('DISTINCT entity');
+            $qb->select(sprintf('DISTINCT %s', $this->getRootAlias()));
         }
 
         $query = $qb->getQuery();
@@ -173,10 +173,14 @@ class QueryHelper
         $selects = [];
 
         foreach ($fields as $field) {
-            $selects[] = str_contains($field, '.') ? $field : 'entity.'.$field;
+            $selects[] = !ctype_alpha($field) ? $field : sprintf('%s.%s', $this->getRootAlias(), $field);
         }
 
         $qb->select(...$selects);
+
+        if ($this->distinct) {
+            $qb->distinct();
+        }
 
         $query = $qb->getQuery();
 
@@ -205,7 +209,7 @@ class QueryHelper
         assert($this->validateQueryBuilder());
 
         return (int)(clone $this->queryBuilder)
-            ->select($this->distinct ? 'COUNT(DISTINCT entity.id)' : 'COUNT(1)')
+            ->select($this->distinct ? sprintf('COUNT(DISTINCT %s.id)', $this->getRootAlias()) : 'COUNT(1)')
             ->getQuery()
             ->getSingleScalarResult();
     }
@@ -220,7 +224,7 @@ class QueryHelper
         /** @phpstan-ignore-next-line */
         return new ArrayCollection(
             (clone $this->queryBuilder)
-                ->select(($this->distinct ? 'DISTINCT ' : '').'entity.id')
+                ->select(($this->distinct ? 'DISTINCT ' : '').sprintf('%s.id', $this->getRootAlias()))
                 ->getQuery()
                 ->getSingleColumnResult()
         );
@@ -234,7 +238,7 @@ class QueryHelper
         $main = null;
 
         foreach ($parts as $part) {
-            if ('entity' === $part->getAlias()) {
+            if ($this->getRootAlias() === $part->getAlias()) {
                 $main = $part;
                 break;
             }
@@ -266,5 +270,10 @@ class QueryHelper
         $this->limit($limit);
 
         return $result;
+    }
+
+    private function getRootAlias(): string
+    {
+        return $this->queryBuilder->getRootAliases()[0] ?? throw new \RuntimeException('No root alias found');
     }
 }
