@@ -204,8 +204,10 @@ class QueryHelper
     {
         assert($this->validateQueryBuilder());
 
+        $id = 'entity.'.$this->getIdentifierField();
+
         return (int)(clone $this->queryBuilder)
-            ->select($this->distinct ? 'COUNT(DISTINCT entity.id)' : 'COUNT(1)')
+            ->select($this->distinct ? 'COUNT(DISTINCT '.$id.')' : 'COUNT(1)')
             ->getQuery()
             ->getSingleScalarResult();
     }
@@ -217,8 +219,10 @@ class QueryHelper
     {
         assert($this->validateQueryBuilder());
 
+        $id = 'entity.'.$this->getIdentifierField();
+
         $query = (clone $this->queryBuilder)
-            ->select(($this->distinct ? 'DISTINCT ' : '').'entity.id')
+            ->select(($this->distinct ? 'DISTINCT ' : '').$id)
             ->getQuery();
 
         if (null !== $this->lockMode) {
@@ -244,6 +248,18 @@ class QueryHelper
         }
 
         return $main;
+    }
+
+    private function getIdentifierField(): string
+    {
+        $main = $this->getMainFrom();
+
+        assert(null !== $main);
+
+        $class = $main->getFrom();
+        $em = $this->queryBuilder->getEntityManager();
+
+        return $em->getClassMetadata($class)->getIdentifierFieldNames()[0];
     }
 
     private function validateQueryBuilder(): bool

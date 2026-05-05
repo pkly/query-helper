@@ -12,6 +12,7 @@ use Doctrine\ORM\Mapping\Driver\AttributeDriver;
 use Doctrine\ORM\Tools\SchemaTool;
 use PHPUnit\Framework\TestCase;
 use Pkly\QueryHelper\Tests\Fixtures\Entity\Post;
+use Pkly\QueryHelper\Tests\Fixtures\Entity\Tag;
 use Pkly\QueryHelper\Tests\Fixtures\Entity\User;
 
 abstract class AbstractDoctrineTestCase extends TestCase
@@ -34,6 +35,7 @@ abstract class AbstractDoctrineTestCase extends TestCase
         $schemaTool->createSchema([
             $this->entityManager->getClassMetadata(User::class),
             $this->entityManager->getClassMetadata(Post::class),
+            $this->entityManager->getClassMetadata(Tag::class),
         ]);
     }
 
