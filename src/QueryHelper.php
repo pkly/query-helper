@@ -217,13 +217,16 @@ class QueryHelper
     {
         assert($this->validateQueryBuilder());
 
+        $query = (clone $this->queryBuilder)
+            ->select(($this->distinct ? 'DISTINCT ' : '').'entity.id')
+            ->getQuery();
+
+        if (null !== $this->lockMode) {
+            $query->setLockMode($this->lockMode);
+        }
+
         /** @phpstan-ignore-next-line */
-        return new ArrayCollection(
-            (clone $this->queryBuilder)
-                ->select(($this->distinct ? 'DISTINCT ' : '').'entity.id')
-                ->getQuery()
-                ->getSingleColumnResult()
-        );
+        return new ArrayCollection($query->getSingleColumnResult());
     }
 
     private function getMainFrom(): From|null
@@ -261,10 +264,10 @@ class QueryHelper
         $limit = $this->queryBuilder->getMaxResults();
         $this->limit(1);
 
-        $result = $callable();
-
-        $this->limit($limit);
-
-        return $result;
+        try {
+            return $callable();
+        } finally {
+            $this->limit($limit);
+        }
     }
 }
