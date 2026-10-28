@@ -175,7 +175,7 @@ class QueryHelper
         $selects = [];
 
         foreach ($fields as $field) {
-            $selects[] = str_contains($field, '.') ? $field : 'entity.'.$field;
+            $selects[] = $this->qualifyField($field);
         }
 
         $qb->distinct($this->isDistinct());
@@ -201,6 +201,80 @@ class QueryHelper
         array $fields
     ): array|null {
         return $this->withSingleResult(fn () => $this->fieldList($fields)[0] ?? null);
+    }
+
+    /**
+     * Hydrates each row directly into a plain object via DQL `SELECT NEW Class(...)`, bypassing
+     * entity hydration and the UnitOfWork entirely. $fields are passed positionally to the
+     * constructor of $class; bare names are prefixed with `entity.`, anything containing a dot or
+     * parentheses (`entity.title`, `IDENTITY(entity.author)`, `COUNT(entity.id)`) is used verbatim.
+     * A field may also be a Model, which becomes a nested NEW expression.
+     *
+     * @template TModel of object
+     *
+     * @param class-string<TModel>                 $class
+     * @param non-empty-list<string|Model<object>> $fields
+     *
+     * @return Collection<int, TModel>
+     */
+    public function models(
+        string $class,
+        array $fields
+    ): Collection {
+        /** @var list<TModel> $result */
+        $result = $this->executeNew([Model::of($class, $fields)]);
+
+        return new ArrayCollection($result);
+    }
+
+    /**
+     * @template TModel of object
+     *
+     * @param class-string<TModel>                 $class
+     * @param non-empty-list<string|Model<object>> $fields
+     *
+     * @return TModel|null
+     */
+    public function model(
+        string $class,
+        array $fields
+    ): object|null {
+        return $this->withSingleResult(fn () => $this->models($class, $fields)[0] ?? null);
+    }
+
+    /**
+     * Hydrates several side-by-side models per row: each row is an array keyed by the given
+     * aliases, each holding the corresponding Model instance.
+     *
+     * @param non-empty-array<string, Model<object>> $models
+     *
+     * @return Collection<int, array<string, object>>
+     */
+    public function modelRows(
+        array $models
+    ): Collection {
+        $alias = array_key_first($models);
+        $rows = [];
+
+        // Doctrine unwraps a single select expression to the bare object, so re-key it by its alias
+        foreach ($this->executeNew($models) as $row) {
+            /** @var array<string, object> $row */
+            $row = is_array($row) ? $row : [$alias => $row];
+            $rows[] = $row;
+        }
+
+        return new ArrayCollection($rows);
+    }
+
+    /**
+     * @param non-empty-array<string, Model<object>> $models
+     *
+     * @return array<string, object>|null
+     */
+    public function modelRow(
+        array $models
+    ): array|null {
+        return $this->withSingleResult(fn () => $this->modelRows($models)[0] ?? null);
     }
 
     public function count(): int
@@ -264,6 +338,59 @@ class QueryHelper
         $em = $this->queryBuilder->getEntityManager();
 
         return $em->getClassMetadata($class)->getIdentifierFieldNames()[0];
+    }
+
+    /**
+     * @param non-empty-array<array-key, Model<object>> $models
+     *
+     * @return list<mixed>
+     */
+    private function executeNew(
+        array $models
+    ): array {
+        assert($this->validateQueryBuilder());
+
+        $selects = [];
+
+        foreach ($models as $alias => $model) {
+            $selects[] = is_string($alias) ? $this->toNewExpression($model).' AS '.$alias : $this->toNewExpression($model);
+        }
+
+        $qb = (clone $this->queryBuilder);
+        $qb->distinct($this->isDistinct());
+        $qb->select(...$selects);
+
+        $query = $qb->getQuery();
+
+        if (null !== $this->lockMode) {
+            $query->setLockMode($this->lockMode);
+        }
+
+        /** @var list<mixed> $result */
+        $result = $query->getResult();
+
+        return $result;
+    }
+
+    /**
+     * @param Model<object> $model
+     */
+    private function toNewExpression(
+        Model $model
+    ): string {
+        $arguments = [];
+
+        foreach ($model->getFields() as $field) {
+            $arguments[] = $field instanceof Model ? $this->toNewExpression($field) : $this->qualifyField($field);
+        }
+
+        return sprintf('NEW %s(%s)', $model->getClass(), implode(', ', $arguments));
+    }
+
+    private function qualifyField(
+        string $field
+    ): string {
+        return 1 === preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $field) ? 'entity.'.$field : $field;
     }
 
     private function validateQueryBuilder(): bool

@@ -33,7 +33,7 @@ Tests live in `tests/` and run against an in-memory SQLite database via `Abstrac
 
 ## Architecture
 
-The library is a single class: `src/QueryHelper.php`. It wraps Doctrine ORM's `QueryBuilder` to provide a chainable, type-safe API.
+The library is `src/QueryHelper.php` plus the small `src/Model.php` value object used by the model fetchers. It wraps Doctrine ORM's `QueryBuilder` to provide a chainable, type-safe API.
 
 **Class signature:** `QueryHelper<TValue, TId of int|string>`
 
@@ -43,12 +43,17 @@ The library is a single class: `src/QueryHelper.php`. It wraps Doctrine ORM's `Q
 - Result fetchers: `value()`, `id()`, `list()`, `ids()` — return entities/IDs
 - Reference fetchers: `reference()`, `references()` — return Doctrine lazy-loading references via `EntityManager::getReference()`
 - Field fetchers: `fields()`, `fieldList()` — return raw scalar arrays for specific field selections
+- Model fetchers: `model()`, `models()` — hydrate rows into plain objects via DQL `SELECT NEW Class(...)`, bypassing entity hydration; fields go positionally to the constructor. A field may be a `Model` (`src/Model.php`, built with `Model::of(Class::class, [...])`) for a nested `NEW`. `modelRows()` / `modelRow()` take `alias => Model` and return per-row arrays keyed by alias; Doctrine unwraps a lone aliased `NEW` to the bare object, so `modelRows()` re-keys single-model rows itself.
 - Aggregates: `count()`, `exists()`
 - Chainable modifiers: `limit()`, `offset()`, `distinct()`, `lockMode()`, `orderBy()`, `addOrderBy()` — all return `static`
 
 **Key implementation detail:** Single-result methods (`value()`, `id()`, `reference()`) call the private `withSingleResult()` helper, which clones the internal QueryBuilder and sets `maxResults(1)` before executing, so they never mutate the stored builder.
 
+**Field qualification:** `fieldList()`, `fields()`, `models()` and `model()` share the private `qualifyField()`: a bare identifier (`title`) becomes `entity.title`; anything else (`entity.title`, `IDENTITY(entity.author)`, `COUNT(entity.id)`) is passed through verbatim.
+
 **Distinct resolution:** `distinct()` sets a local flag, but the private `isDistinct()` ORs it with the wrapped builder's own `distinct` DQL part, so `$qb->distinct()` set by the caller applies to every fetcher and cannot be turned off via `distinct(false)`. Each fetcher applies the result to its clone through `QueryBuilder::distinct()` rather than baking `DISTINCT` into a select string — that keeps custom selects intact — except `count()`, which clears it and uses `COUNT(DISTINCT entity.<id>)` instead.
+
+**PHPStan extension:** `src/PHPStan/ModelRowsReturnTypeExtension.php` (registered in `extension.neon`, included by `phpstan.neon.dist` and advertised via `composer.json` `extra.phpstan.includes`) narrows `modelRows()` / `modelRow()` from `array<string, object>` to a constant array shape by unwrapping `Model<X>` → `X` for each literal alias; non-literal maps fall back to the docblock type. Covered by `tests/PHPStan/ModelRowsReturnTypeExtensionTest.php`, a `TypeInferenceTestCase` over the `assertType()` calls in `tests/PHPStan/data/model-rows.php`.
 
 **PHPStan suppression:** A few `@phpstan-ignore` comments exist in `QueryHelper.php` where the type system cannot fully verify generic constraints — these are intentional and should not be removed.
 

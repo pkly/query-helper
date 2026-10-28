@@ -1,0 +1,5 @@
+services:
+  -
+    class: Pkly\QueryHelper\PHPStan\ModelRowsReturnTypeExtension
+    tags:
+      - phpstan.broker.dynamicMethodReturnTypeExtension

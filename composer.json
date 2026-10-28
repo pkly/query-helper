@@ -29,5 +29,12 @@
         "phpstan/phpstan": "^2",
         "phpstan/phpstan-strict-rules": "^2.0",
         "phpunit/phpunit": "^13"
+    },
+    "extra": {
+        "phpstan": {
+            "includes": [
+                "extension.neon"
+            ]
+        }
     }
 }
